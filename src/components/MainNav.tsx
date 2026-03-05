@@ -3,34 +3,31 @@
 import { useState } from "react";
 import Link from "next/link";
 
-const navLinks = [
-  { href: "#vision", label: "Vision" },
-  { href: "#swarm", label: "Swarm Tech" },
-  { href: "#defense", label: "Defense Grid" },
-  { href: "#system", label: "System View" },
-  { href: "#ai", label: "AI Control" },
-  { href: "#future", label: "Future" },
-  { href: "#contact", label: "Contact" },
+const mainNavLinks = [
+  { href: "/", label: "Home" },
+  { href: "/voron-swarm", label: "Voron Swarm" },
+  { href: "/voron-shield", label: "Voron Shield" },
+  { href: "/voron-terra", label: "Voron Terra" },
+  { href: "/voron-lux", label: "Voron Lux" },
 ];
 
-export function Nav() {
-  const [open, setOpen] = useState(false);
+export function MainNav() {
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-brand-orange/20 bg-brand-black/95 backdrop-blur supports-[backdrop-filter]:bg-brand-black/80">
+    <>
       <nav className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2">
           <span className="font-mono text-lg font-bold uppercase tracking-widest text-brand-orange">
             Voron
           </span>
           <span className="font-mono text-lg font-bold uppercase tracking-widest text-brand-tan">
-            Swarm
+            Dynamics
           </span>
         </Link>
 
-        {/* Desktop */}
-        <ul className="hidden items-center gap-8 md:flex">
-          {navLinks.map((link) => (
+        <ul className="hidden items-center gap-6 md:flex lg:gap-8">
+          {mainNavLinks.map((link) => (
             <li key={link.href}>
               <Link
                 href={link.href}
@@ -42,34 +39,30 @@ export function Nav() {
           ))}
         </ul>
 
-        {/* Mobile menu button */}
         <button
           type="button"
           className="flex flex-col gap-1.5 md:hidden"
-          onClick={() => setOpen(!open)}
+          onClick={() => setMobileOpen((o) => !o)}
           aria-label="Toggle menu"
         >
           <span
-            className={`h-0.5 w-6 bg-brand-orange transition ${open ? "translate-y-2 rotate-45" : ""}`}
+            className={`h-0.5 w-6 bg-brand-orange transition ${mobileOpen ? "translate-y-2 rotate-45" : ""}`}
           />
+          <span className={`h-0.5 w-6 bg-brand-orange transition ${mobileOpen ? "opacity-0" : ""}`} />
           <span
-            className={`h-0.5 w-6 bg-brand-orange transition ${open ? "opacity-0" : ""}`}
-          />
-          <span
-            className={`h-0.5 w-6 bg-brand-orange transition ${open ? "-translate-y-2 -rotate-45" : ""}`}
+            className={`h-0.5 w-6 bg-brand-orange transition ${mobileOpen ? "-translate-y-2 -rotate-45" : ""}`}
           />
         </button>
       </nav>
 
-      {/* Mobile dropdown */}
-      {open && (
+      {mobileOpen && (
         <div className="border-t border-brand-orange/20 bg-brand-black px-4 py-4 md:hidden">
-          <ul className="flex flex-col gap-4">
-            {navLinks.map((link) => (
+          <ul className="flex flex-col gap-3">
+            {mainNavLinks.map((link) => (
               <li key={link.href}>
                 <Link
                   href={link.href}
-                  onClick={() => setOpen(false)}
+                  onClick={() => setMobileOpen(false)}
                   className="block font-mono text-sm uppercase tracking-widest text-brand-tan hover:text-brand-orange"
                 >
                   {link.label}
@@ -79,6 +72,6 @@ export function Nav() {
           </ul>
         </div>
       )}
-    </header>
+    </>
   );
 }

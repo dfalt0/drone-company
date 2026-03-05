@@ -36,7 +36,7 @@ export function Hero() {
             Drone Swarms Deployed
           </p>
           <h1 className="mt-4 font-display text-5xl font-bold uppercase tracking-tight text-brand-tan sm:text-6xl md:text-7xl lg:text-8xl">
-            Nexus
+            Voron
             <br />
             <span className="text-brand-orange">Swarm</span>
           </h1>

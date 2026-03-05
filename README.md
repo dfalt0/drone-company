@@ -1,4 +1,4 @@
-# Nexus Swarm — Company Website
+# Voron Dynamics — Company Website
 
 Futuristic, investor-focused marketing site for the drone swarm defense startup. Built with Next.js 14, TypeScript, and Tailwind CSS. Design inspired by industrial/military tech aesthetics: dark base, orange accent, status bars, grid overlays, and technical typography.
 

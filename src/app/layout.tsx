@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
-import { Nav } from "@/components/Nav";
+import { Header } from "@/components/Header";
 import { Footer } from "@/components/Footer";
 
 const spaceGrotesk = Space_Grotesk({
@@ -14,9 +14,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Nexus Swarm — Autonomous Drone Swarm Defense",
+  title: "Voron Dynamics — Defense-First Robotics",
   description:
-    "Lightweight, AI-controlled drone swarms for defensive grid deployment. Improving swarm tech, aerodynamics, and form factor.",
+    "Defense-first robotics manufacturer. Autonomous swarm technology: Voron Swarm, Voron Shield, Voron Terra, Voron Lux.",
 };
 
 export default function RootLayout({
@@ -29,7 +29,7 @@ export default function RootLayout({
       <body
         className={`${spaceGrotesk.variable} ${jetbrainsMono.variable} font-sans antialiased min-h-screen flex flex-col bg-[#0d0d0c] text-brand-tan`}
       >
-        <Nav />
+        <Header />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>
