@@ -1,0 +1,801 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Drone Swarm Formation</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #050d15;
+    overflow: hidden;
+    font-family: 'Courier New', monospace;
+  }
+  canvas { display: block; }
+
+  #hud {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .corner-bracket {
+    position: absolute;
+    width: 40px; height: 40px;
+    border-color: rgba(0, 255, 140, 0.4);
+    border-style: solid;
+  }
+  .tl { top: 24px; left: 24px; border-width: 2px 0 0 2px; }
+  .tr { top: 24px; right: 24px; border-width: 2px 2px 0 0; }
+  .bl { bottom: 24px; left: 24px; border-width: 0 0 2px 2px; }
+  .br { bottom: 24px; right: 24px; border-width: 0 2px 2px 0; }
+
+  #status-top {
+    position: absolute;
+    top: 18px; left: 50%; transform: translateX(-50%);
+    color: rgba(0, 255, 140, 0.7);
+    font-size: 10px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+  }
+
+  #status-left {
+    position: absolute;
+    left: 28px;
+    top: 50%; transform: translateY(-50%);
+    color: rgba(0, 255, 140, 0.45);
+    font-size: 9px;
+    letter-spacing: 2px;
+    line-height: 2.2;
+  }
+
+  #status-right {
+    position: absolute;
+    right: 28px;
+    top: 50%; transform: translateY(-50%);
+    color: rgba(0, 255, 140, 0.45);
+    font-size: 9px;
+    letter-spacing: 2px;
+    line-height: 2.2;
+    text-align: right;
+  }
+
+  #drone-count {
+    position: absolute;
+    bottom: 32px; left: 50%; transform: translateX(-50%);
+    color: rgba(0, 255, 140, 0.6);
+    font-size: 9px;
+    letter-spacing: 3px;
+  }
+
+  .blink { animation: blink 1.4s step-end infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  #scanline {
+    position: absolute; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(0,255,140,0.08), transparent);
+    animation: scan 6s linear infinite;
+    top: 0;
+  }
+  @keyframes scan {
+    0% { top: 0; }
+    100% { top: 100%; }
+  }
+</style>
+</head>
+<body>
+<div id="hud">
+  <div class="corner-bracket tl"></div>
+  <div class="corner-bracket tr"></div>
+  <div class="corner-bracket bl"></div>
+  <div class="corner-bracket br"></div>
+  <div id="scanline"></div>
+  <div id="status-top">SWARM FORMATION ACTIVE</div>
+  <div id="status-left">
+    SYS: ONLINE<br>
+    MODE: AUTONOMOUS<br>
+    ALT: 120M<br>
+    RADIUS: 800M<br>
+    <span class="blink">▶ SYNC: LOCKED</span>
+  </div>
+  <div id="status-right">
+    LAYER 1: 48 UNITS<br>
+    LAYER 2: 32 UNITS<br>
+    LAYER 3: 16 UNITS<br>
+    RELAY: 4 UNITS<br>
+    <span class="blink">■ UPLINK OK</span>
+  </div>
+  <div id="drone-count">UNITS ACTIVE: <span id="count">100</span> / 100 &nbsp;|&nbsp; NET LATENCY: <span id="latency">4</span>ms</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ─── Scene ─────────────────────────────────────────────────────
+const W = window.innerWidth, H = window.innerHeight;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(52, W/H, 0.1, 2000);
+camera.position.set(0, 260, 680);
+camera.lookAt(0, 80, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.setClearColor(0x050d15, 1);
+document.body.appendChild(renderer.domElement);
+
+// ─── Colors ────────────────────────────────────────────────────
+const C = {
+  grid:    new THREE.Color(0x00c878),
+  drone:   new THREE.Color(0x00ff8c),
+  alt:     new THREE.Color(0xccff44),
+  pulse:   new THREE.Color(0x00ffcc),
+  threat:  new THREE.Color(0xff3322),
+};
+
+// ─── Dome Grid ─────────────────────────────────────────────────
+const DOME_R = 300;
+function buildDome(R, lat, lon) {
+  const g = new THREE.Group();
+  const m = () => new THREE.LineBasicMaterial({ color: C.grid, transparent: true, opacity: 0.55 });
+  for (let i = 1; i <= lat; i++) {
+    const phi = (Math.PI/2)*(i/lat), y = R*Math.sin(phi), r = R*Math.cos(phi);
+    const pts = [];
+    for (let j = 0; j <= lon; j++) { const th = 2*Math.PI*j/lon; pts.push(new THREE.Vector3(r*Math.cos(th),y,r*Math.sin(th))); }
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m()));
+  }
+  for (let j = 0; j < lon; j++) {
+    const th = 2*Math.PI*j/lon, pts = [];
+    for (let i = 0; i <= lat*6; i++) { const phi=(Math.PI/2)*(i/(lat*6)),y=R*Math.sin(phi),r=R*Math.cos(phi); pts.push(new THREE.Vector3(r*Math.cos(th),y,r*Math.sin(th))); }
+    g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), m()));
+  }
+  const bp = []; for (let j=0;j<=lon*4;j++){const th=2*Math.PI*j/(lon*4);bp.push(new THREE.Vector3(R*Math.cos(th),0,R*Math.sin(th)));} g.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(bp), m()));
+  return g;
+}
+const dome = buildDome(DOME_R, 9, 24);
+scene.add(dome);
+
+// ─── Drones ────────────────────────────────────────────────────
+const droneGeo = new THREE.OctahedronGeometry(5, 0);
+const drones = [];
+
+function makeDrone(x, y, z, isAlt) {
+  const mat = new THREE.MeshBasicMaterial({ color: isAlt ? C.alt : C.drone, wireframe: true });
+  const m = new THREE.Mesh(droneGeo, mat);
+  m.position.set(x, y, z);
+  m.userData = {
+    basePos:     new THREE.Vector3(x, y, z),
+    phase:       Math.random() * Math.PI * 2,
+    hoverSpeed:  0.4 + Math.random() * 0.6,
+    pulsePhase:  Math.random() * Math.PI * 2,
+    altColor:    isAlt,
+    // intercept state
+    state:       'idle',   // idle | scrambling | converging | flashing | returning | spawning
+    vel:         new THREE.Vector3(),
+    interceptTarget: null, // Projectile ref
+    flashTimer:  0,
+    returnTimer: 0,
+    spawnProgress: 0,      // 0→1 for spawn travel from hub
+    spawnFrom:   new THREE.Vector3(),
+  };
+  dome.add(m);
+  drones.push(m);
+  return m;
+}
+
+const LAT = 9, LON = 24;
+for (let i = 1; i <= LAT; i++) {
+  for (let j = 0; j < LON; j++) {
+    // Only thin out the very top ring slightly
+    if (i === LAT && j % 2 !== 0) continue;
+    const phi = (Math.PI/2)*(i/LAT), th = 2*Math.PI*j/LON;
+    const y = DOME_R*Math.sin(phi), r = DOME_R*Math.cos(phi);
+    makeDrone(r*Math.cos(th), y, r*Math.sin(th), Math.random() > 0.8);
+  }
+}
+
+// ─── Hub ───────────────────────────────────────────────────────
+const hub = new THREE.Mesh(
+  new THREE.BoxGeometry(32, 32, 32),
+  new THREE.MeshBasicMaterial({ color: 0xffffff, wireframe: true })
+);
+hub.position.set(0, 0, 0);
+scene.add(hub);
+
+// ─── Data links (hub → apex drones) ───────────────────────────
+const links = [];
+class DataLink {
+  constructor(a, b) {
+    this.phase = Math.random()*Math.PI*2;
+    const mat = new THREE.LineBasicMaterial({ color: C.pulse, transparent: true, opacity: 0.25 });
+    this.line = new THREE.Line(new THREE.BufferGeometry().setFromPoints([a.clone(), b.clone()]), mat);
+    scene.add(this.line);
+  }
+  update(t) { this.line.material.opacity = 0.04 + 0.1*Math.abs(Math.sin(t*0.4+this.phase)); }
+}
+drones.filter(d => d.userData.basePos.y > 240).forEach(d => links.push(new DataLink(hub.position, d.userData.basePos)));
+
+// ─── Threat Triangles ──────────────────────────────────────────
+function makeTriangle(sz, col) {
+  const h = sz*Math.sqrt(3)/2;
+  const pts = [
+    new THREE.Vector3(0,  h*.667, 0),
+    new THREE.Vector3(-sz/2, -h*.333, 0),
+    new THREE.Vector3( sz/2, -h*.333, 0),
+    new THREE.Vector3(0,  h*.667, 0),
+  ];
+  return new THREE.Line(new THREE.BufferGeometry().setFromPoints(pts), new THREE.LineBasicMaterial({ color: col, transparent: true, opacity: 0.95 }));
+}
+const THREATS = [
+  { orbitR:680, spd:0.055, oy:90,  ph:0,            col:0xff3322, sz:28 },
+  { orbitR:720, spd:0.035, oy:170, ph:Math.PI*.7,    col:0xff5500, sz:24 },
+  { orbitR:660, spd:0.045, oy:50,  ph:Math.PI*1.4,   col:0xff2255, sz:26 },
+  { orbitR:700, spd:0.065, oy:230, ph:Math.PI,       col:0xff4400, sz:22 },
+];
+const threatMeshes = THREATS.map(cfg => { const t = makeTriangle(cfg.sz, cfg.col); scene.add(t); return t; });
+const fireTimers = THREATS.map(() => 300 + Math.random()*200);
+
+// ─── Enemy Drones ──────────────────────────────────────────────
+// Small red drones that fly in on linear paths from outside the dome
+const enemyDroneGeo = new THREE.OctahedronGeometry(6, 0);
+
+class EnemyDrone {
+  constructor() {
+    this.mat = new THREE.MeshBasicMaterial({ color: 0xff2200, wireframe: true, transparent: true, opacity: 0 });
+    this.mesh = new THREE.Mesh(enemyDroneGeo, this.mat);
+    scene.add(this.mesh);
+
+    this.active = false;
+    this.intercepted = false;
+    this.pos = new THREE.Vector3();
+    this.vel = new THREE.Vector3();
+    this.interceptors = [];
+    this.assignedOnce = false;
+    this.interceptPoint = null;
+    this.progress = 0;
+    this.from = new THREE.Vector3();
+    this.to   = new THREE.Vector3();
+  }
+
+  launch(from) {
+    this.from.copy(from);
+    this.to.copy(hub.position);
+    this.pos.copy(from);
+    this.mesh.position.copy(from);
+    this.progress = 0;
+    this.active = true;
+    this.intercepted = false;
+    this.interceptors = [];
+    this.assignedOnce = false;
+    this.interceptPoint = null;
+    // Straight-line speed — slow and deliberate
+    this.speed = 0.0028 + Math.random() * 0.0015;
+  }
+
+  update() {
+    if (!this.active) return;
+
+    if (this.intercepted) {
+      this.mat.opacity *= 0.82;
+      this.mesh.scale.multiplyScalar(1.05);
+      if (this.mat.opacity < 0.02) {
+        this.mat.opacity = 0;
+        this.active = false;
+        this.mesh.scale.setScalar(1);
+        this._release();
+      }
+      return;
+    }
+
+    this.progress = Math.min(1, this.progress + this.speed);
+    this.pos.lerpVectors(this.from, this.to, this.progress);
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y += 0.05;
+    this.mesh.rotation.x += 0.03;
+
+    // Fade in quickly, stay visible
+    const fadeIn = Math.min(1, this.progress * 8);
+    this.mat.opacity = fadeIn * 0.85;
+
+    // Contact check vs intercepting drones (world space — both in scene)
+    for (const d of this.interceptors) {
+      const droneWorld = new THREE.Vector3();
+      dome.localToWorld(droneWorld.copy(d.position));
+      if (droneWorld.distanceTo(this.pos) < 32) {
+        this.intercepted = true;
+        this.interceptors.forEach(id => { id.userData.state = 'flashing'; id.userData.flashTimer = 14; });
+        return;
+      }
+    }
+
+    if (this.progress >= 1) {
+      this.active = false;
+      this.mat.opacity = 0;
+      this._release();
+    }
+  }
+
+  _release() {
+    this.interceptors.forEach(d => {
+      if (d.userData.state === 'converging' || d.userData.state === 'scrambling') {
+        d.userData.interceptTarget = null;
+      }
+    });
+    this.interceptors = [];
+  }
+}
+
+const enemyDrones = Array.from({ length: 12 }, () => new EnemyDrone());
+const enemyDroneTimer = { val: 200 + Math.random() * 160 };
+
+function launchEnemyDrone() {
+  const ed = enemyDrones.find(e => !e.active);
+  if (!ed) return;
+  // Spawn from a random direction outside the dome
+  const angle = Math.random() * Math.PI * 2;
+  const dist  = 620 + Math.random() * 80;
+  const height = 40 + Math.random() * 220;
+  const from = new THREE.Vector3(
+    Math.cos(angle) * dist,
+    height,
+    Math.sin(angle) * dist
+  );
+  ed.launch(from);
+}
+
+// Intercept trigger for enemy drones — when drone crosses dome surface
+function assignEnemyDroneInterceptors() {
+  for (const ed of enemyDrones) {
+    if (!ed.active || ed.intercepted || ed.assignedOnce) continue;
+    // Trigger when drone is within dome radius + buffer
+    if (ed.pos.length() > DOME_R + 80) continue;
+    if (ed.pos.y < 0) continue;
+    ed.assignedOnce = true;
+
+    const hitLocal = dome.worldToLocal(ed.pos.clone());
+
+    const nearby = drones
+      .filter(d =>
+        d.userData.state === 'idle' &&
+        d.userData.basePos.distanceTo(hitLocal) < INTERCEPT_MAX_DIST
+      )
+      .sort((a, b) =>
+        a.userData.basePos.distanceTo(hitLocal) -
+        b.userData.basePos.distanceTo(hitLocal)
+      )
+      .slice(0, INTERCEPT_COUNT);
+
+    ed.interceptPoint = ed.pos.clone();
+
+    nearby.forEach((d, i) => {
+      d.userData.state = 'scrambling';
+      d.userData.interceptTarget = ed;
+      d.userData.vel.set(0, 0, 0);
+      d.userData.scrambleDelay = i * 4;
+      ed.interceptors.push(d);
+    });
+  }
+}
+
+// ─── Projectiles ───────────────────────────────────────────────
+const INTERCEPT_TRIGGER   = 380; // world dist from origin — only trigger when missile is close and descending
+const INTERCEPT_COUNT     = 3;
+const INTERCEPT_MAX_DIST  = 110;
+
+class Projectile {
+  constructor() {
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([0,0,0, 0,0,1], 3));
+    this.mat = new THREE.LineBasicMaterial({ color: 0xff5533, transparent: true, opacity: 0 });
+    this.line = new THREE.Line(geo, this.mat);
+    scene.add(this.line);
+
+    // Glowing warhead at tip
+    const headGeo = new THREE.OctahedronGeometry(5, 0);
+    this.headMat = new THREE.MeshBasicMaterial({ color: 0xff8844, transparent: true, opacity: 0 });
+    this.head = new THREE.Mesh(headGeo, this.headMat);
+    scene.add(this.head);
+
+    this.active = false;
+    this.intercepted = false;
+    this.from = new THREE.Vector3();
+    this.to   = new THREE.Vector3();
+    this.ctrl = new THREE.Vector3();
+    this.headPos = new THREE.Vector3();
+    this.progress = 0;
+    this.speed = 0;
+    this.interceptors = [];
+    this.assignedOnce = false;
+    this.interceptPoint = null;
+  }
+
+  fire(from, to) {
+    this.from.copy(from);
+    this.to.copy(to);
+    this.headPos.copy(from);
+    this.progress = 0;
+    this.speed = 0.0018 + Math.random() * 0.0008;
+    this.active = true;
+    this.intercepted = false;
+    this.interceptors = [];
+    this.assignedOnce = false;
+    this.interceptPoint = null;
+
+    // Lofted arc — missile climbs then descends toward hub
+    this.ctrl.lerpVectors(from, to, 0.38);
+    this.ctrl.y += 260 + Math.random() * 140;
+    this.ctrl.x += (Math.random() - 0.5) * 60;
+    this.ctrl.z += (Math.random() - 0.5) * 60;
+  }
+
+  _bezier(t) {
+    const mt = 1 - t;
+    return new THREE.Vector3(
+      mt*mt*this.from.x + 2*mt*t*this.ctrl.x + t*t*this.to.x,
+      mt*mt*this.from.y + 2*mt*t*this.ctrl.y + t*t*this.to.y,
+      mt*mt*this.from.z + 2*mt*t*this.ctrl.z + t*t*this.to.z
+    );
+  }
+
+  update() {
+    if (!this.active) return;
+
+    if (this.intercepted) {
+      this.mat.opacity    *= 0.78;
+      this.headMat.opacity *= 0.78;
+      this.head.scale.multiplyScalar(1.06);
+      if (this.mat.opacity < 0.015) {
+        this.mat.opacity = 0; this.headMat.opacity = 0;
+        this.active = false; this._release();
+      }
+      return;
+    }
+
+    // Gentle acceleration on descent — slow climb, measured approach
+    const accel = 0.7 + this.progress * 0.45;
+    this.progress = Math.min(1, this.progress + this.speed * accel);
+
+    this.headPos.copy(this._bezier(this.progress));
+    const tailPos = this._bezier(Math.max(0, this.progress - 0.06));
+
+    const pos = this.line.geometry.attributes.position;
+    pos.setXYZ(0, tailPos.x, tailPos.y, tailPos.z);
+    pos.setXYZ(1, this.headPos.x, this.headPos.y, this.headPos.z);
+    pos.needsUpdate = true;
+
+    this.head.position.copy(this.headPos);
+    this.head.rotation.y += 0.07;
+
+    // Fade IN quickly, stay fully bright, only fade out in final 10% of travel
+    const fadeIn  = Math.min(1, this.progress * 10);      // full brightness by p=0.1
+    const fadeOut = this.progress > 0.9 ? (1 - this.progress) * 10 : 1; // fade only at very end
+    const fade = fadeIn * fadeOut;
+    this.mat.opacity     = fade * 0.90;
+    this.headMat.opacity = fade * 0.85;
+    this.head.scale.setScalar(0.8 + fadeIn * 0.4);
+
+    // Contact: check live missile head against live drone positions (world space)
+    for (const d of this.interceptors) {
+      const droneWorld = new THREE.Vector3();
+      dome.localToWorld(droneWorld.copy(d.position));
+      if (droneWorld.distanceTo(this.headPos) < 35) {
+        this.intercepted = true;
+        this.interceptors.forEach(id => { id.userData.state = 'flashing'; id.userData.flashTimer = 14; });
+        return;
+      }
+    }
+
+    if (this.progress >= 1) {
+      this.active = false;
+      this.mat.opacity = 0; this.headMat.opacity = 0;
+      this._release();
+    }
+  }
+
+  _release() {
+    this.interceptors.forEach(d => {
+      if (d.userData.state === 'converging' || d.userData.state === 'scrambling') {
+        d.userData.interceptTarget = null; // self-resolves to idle
+      }
+    });
+    this.interceptors = [];
+  }
+}
+
+const projectiles = Array.from({ length: 16 }, () => new Projectile());
+
+function fireAt(threatWorldPos) {
+  const p = projectiles.find(p => !p.active);
+  if (!p) return;
+  p.fire(threatWorldPos.clone(), hub.position.clone());
+}
+
+// Sample the bezier arc to find where missile will cross dome surface
+function predictDomeIntersect(proj) {
+  const steps = 50;
+  let prev = proj._bezier(0);
+  for (let i = 1; i <= steps; i++) {
+    const curr = proj._bezier(i / steps);
+    if (prev.length() > DOME_R && curr.length() <= DOME_R && curr.y > 0) {
+      const frac = (prev.length() - DOME_R) / (prev.length() - curr.length());
+      return new THREE.Vector3().lerpVectors(prev, curr, frac);
+    }
+    prev = curr;
+  }
+  return null;
+}
+
+function assignInterceptors() {
+  for (const proj of projectiles) {
+    if (!proj.active || proj.intercepted || proj.assignedOnce) continue;
+    // Only assign when missile is close AND has descended below dome apex height
+    if (proj.headPos.length() > INTERCEPT_TRIGGER) continue;
+    if (proj.headPos.y > DOME_R * 1.1) continue; // still too high — wait for descent
+    proj.assignedOnce = true;
+
+    const hitWorld = predictDomeIntersect(proj);
+    if (!hitWorld) continue;
+
+    const hitLocal = dome.worldToLocal(hitWorld.clone());
+    proj.interceptPoint = hitWorld;
+
+    const nearby = drones
+      .filter(d =>
+        d.userData.state === 'idle' &&
+        d.userData.basePos.distanceTo(hitLocal) < INTERCEPT_MAX_DIST
+      )
+      .sort((a, b) =>
+        a.userData.basePos.distanceTo(hitLocal) -
+        b.userData.basePos.distanceTo(hitLocal)
+      )
+      .slice(0, INTERCEPT_COUNT);
+
+    nearby.forEach((d, i) => {
+      d.userData.state = 'scrambling';
+      d.userData.interceptTarget = proj;
+      d.userData.vel.set(0, 0, 0);
+      d.userData.scrambleDelay = i * 4;
+      proj.interceptors.push(d);
+    });
+  }
+}
+
+// ─── Replacement Drone Spawn ────────────────────────────────────
+const spawnGeo = new THREE.OctahedronGeometry(4, 0);
+const spawns = [];
+
+function spawnReplacement(targetBase, destroyedDrone) {
+  // Guard: only spawn if the slot is truly empty and not already being filled
+  if (!destroyedDrone) return;
+  if (destroyedDrone.userData.state !== 'destroyed') return;
+  if (spawns.some(s => s.drone === destroyedDrone)) return;
+
+  const mat = new THREE.MeshBasicMaterial({ color: 0x00ffcc, wireframe: true, transparent: true, opacity: 0 });
+  const mesh = new THREE.Mesh(spawnGeo, mat);
+
+  const hubWorld = new THREE.Vector3();
+  hub.getWorldPosition(hubWorld);
+  const targetWorld = dome.localToWorld(targetBase.clone());
+
+  mesh.position.copy(hubWorld);
+  mesh.scale.setScalar(0.1);
+  scene.add(mesh);
+
+  spawns.push({
+    mesh,
+    from: hubWorld.clone(),
+    to: targetWorld.clone(),
+    progress: 0,
+    speed: 0.005 + Math.random() * 0.003,
+    done: false,
+    drone: destroyedDrone,
+  });
+}
+
+function updateSpawns(t) {
+  for (let i = spawns.length - 1; i >= 0; i--) {
+    const s = spawns[i];
+    if (s.done) { spawns.splice(i,1); continue; }
+    s.progress = Math.min(1, s.progress + s.speed);
+    const p = s.progress;
+
+    // arc path: lift up then curve out
+    const mid = new THREE.Vector3().lerpVectors(s.from, s.to, 0.5);
+    mid.y += 80;
+    // quadratic bezier
+    const q0 = new THREE.Vector3().lerpVectors(s.from, mid, p);
+    const q1 = new THREE.Vector3().lerpVectors(mid, s.to, p);
+    s.mesh.position.lerpVectors(q0, q1, p);
+
+    // scale up as it travels
+    const sc = 0.1 + p * 0.9;
+    s.mesh.scale.setScalar(sc);
+    s.mesh.material.opacity = Math.sin(p * Math.PI) * 0.9 + (p > 0.9 ? (p-0.9)*10*0.8 : 0);
+    s.mesh.rotation.y += 0.03;
+
+    // glow bright cyan at start (launch burst)
+    const r = p < 0.1 ? 0.5+p*5 : 0.2;
+    s.mesh.material.color.setRGB(r, 1, 1);
+
+    if (p >= 1) {
+      s.mesh.material.opacity = 0;
+      scene.remove(s.mesh);
+      s.done = true;
+      // Revive the destroyed drone at its base position
+      if (s.drone) {
+        const d = s.drone;
+        d.position.copy(d.userData.basePos);
+        d.scale.setScalar(0.1);
+        d.visible = true;
+        d.userData.state = 'idle';
+        d.userData.vel.set(0, 0, 0);
+        // brief scale-in pop
+        d.userData.spawnIn = 12;
+      }
+    }
+  }
+}
+
+
+
+// ─── Spring helper ─────────────────────────────────────────────
+// moves `mesh.position` toward `target` with spring physics on `vel`
+function springTo(mesh, target, vel, stiffness, damping) {
+  const dx = target.x - mesh.position.x;
+  const dy = target.y - mesh.position.y;
+  const dz = target.z - mesh.position.z;
+  vel.x += dx * stiffness; vel.x *= damping;
+  vel.y += dy * stiffness; vel.y *= damping;
+  vel.z += dz * stiffness; vel.z *= damping;
+  mesh.position.x += vel.x;
+  mesh.position.y += vel.y;
+  mesh.position.z += vel.z;
+}
+
+// ─── Camera ────────────────────────────────────────────────────
+let camAngle = 0;
+const CAM_R = 700, CAM_Y = 260;
+
+// ─── HUD ───────────────────────────────────────────────────────
+const countEl = document.getElementById('count');
+const latEl   = document.getElementById('latency');
+setInterval(() => {
+  countEl.textContent = 98 + Math.floor(Math.random()*3);
+  latEl.textContent   = 2  + Math.floor(Math.random()*6);
+}, 2000);
+
+// ─── Main Loop ─────────────────────────────────────────────────
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.016;
+
+  camAngle += 0.0012;
+  camera.position.set(Math.cos(camAngle)*CAM_R, CAM_Y + Math.sin(camAngle*0.2)*30, Math.sin(camAngle)*CAM_R);
+  camera.lookAt(0, 90, 0);
+
+  // assign interceptors once per projectile when in range
+  assignInterceptors();
+
+  // ── Drones ──
+  drones.forEach(d => {
+    const u = d.userData;
+    d.rotation.y += 0.010; d.rotation.x += 0.005;
+
+    if (u.state === 'flashing') {
+      u.flashTimer--;
+      const f = u.flashTimer / 14;
+      d.scale.setScalar(1 + (1-f)*0.5);
+      d.material.color.setRGB(1, 1, 0.5);
+      if (u.flashTimer <= 0) {
+        // Drone is destroyed — hide it and spawn a replacement
+        d.visible = false;
+        d.scale.setScalar(1);
+        u.state = 'destroyed';
+        u.interceptTarget = null;
+        spawnReplacement(u.basePos.clone(), d);
+      }
+
+    } else if (u.state === 'destroyed') {
+      // Invisible, waiting for replacement to arrive — do nothing
+
+    } else if (u.state === 'scrambling') {
+      if (u.scrambleDelay > 0) { u.scrambleDelay--; return; }
+      u.state = 'converging';
+
+    } else if (u.state === 'converging') {
+      const proj = u.interceptTarget;
+      let tgt;
+      if (proj && proj.active) {
+        // Works for both missiles (proj.interceptPoint) and enemy drones (proj.pos)
+        const worldTgt = proj.interceptPoint
+          ? proj.interceptPoint.clone()
+          : (proj.pos ? proj.pos.clone() : null);
+        if (worldTgt) {
+          tgt = dome.worldToLocal(worldTgt);
+          // Clamp to dome surface
+          const len = tgt.length();
+          if (len > DOME_R) tgt.multiplyScalar(DOME_R / len);
+          if (tgt.y < 0) tgt.y = 0;
+        } else {
+          tgt = u.basePos;
+        }
+      } else {
+        tgt = u.basePos; // self-resolves to idle
+      }
+      // softer spring — purposeful but not frantic
+      springTo(d, tgt, u.vel, 0.028, 0.76);
+      const spd = u.vel.length();
+      const intensity = Math.min(1, spd * 8);
+      d.material.color.setRGB(intensity * 0.8, 1.0, (1 - intensity) * 0.55);
+      d.scale.setScalar(1 + intensity * 0.2);
+
+    } else {
+      // idle — slow gentle hover
+      if (u.spawnIn > 0) {
+        u.spawnIn--;
+        d.scale.setScalar(1 - u.spawnIn / 12);
+        d.material.color.setRGB(0.3, 1, 1);
+        return;
+      }
+      const hover = Math.sin(t * u.hoverSpeed * 0.5 + u.phase) * 3;
+      const tgt = new THREE.Vector3(u.basePos.x, u.basePos.y + hover, u.basePos.z);
+      d.position.lerp(tgt, 0.04);
+      d.scale.setScalar(1);
+      const bright = 0.75 + 0.25 * Math.sin(t * 0.8 + u.pulsePhase);
+      if (u.altColor) d.material.color.setRGB(bright*0.8, bright, bright*0.27);
+      else d.material.color.setRGB(0, bright, bright*0.55);
+    }
+  });
+
+  // ── Hub ──
+  hub.rotation.y += 0.008;
+  // pulse hub brighter when spawning
+  const hubAct = spawns.length > 0;
+  hub.material.color.setRGB(hubAct ? 0.9 : 1, 1, hubAct ? 0.9 : 1);
+
+  // ── Threats ──
+  THREATS.forEach((cfg, i) => {
+    const angle = t*cfg.spd + cfg.ph;
+    const x = Math.cos(angle)*cfg.orbitR;
+    const z = Math.sin(angle)*cfg.orbitR;
+    const y = cfg.oy + Math.sin(t*0.3+cfg.ph)*18;
+    threatMeshes[i].position.set(x, y, z);
+    // Rotate only around Y so triangle stays upright and tip points toward dome center
+    threatMeshes[i].rotation.y = Math.atan2(x, z); // face inward
+    fireTimers[i]--;
+    if (fireTimers[i] <= 0) { fireAt(threatMeshes[i].position); fireTimers[i] = 480 + Math.random()*300; }
+  });
+
+  // ── Enemy Drones ──
+  assignEnemyDroneInterceptors();
+  enemyDrones.forEach(e => e.update());
+  enemyDroneTimer.val--;
+  if (enemyDroneTimer.val <= 0) {
+    launchEnemyDrone();
+    enemyDroneTimer.val = 180 + Math.random() * 160; // one enemy drone every ~6–11s
+  }
+
+  // ── Projectiles ──
+  projectiles.forEach(p => p.update());
+
+  // ── Spawns ──
+  updateSpawns(t);
+
+  // ── Links ──
+  links.forEach(l => l.update(t));
+
+  dome.rotation.y += 0.0004;
+  renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+  const w = innerWidth, h = innerHeight;
+  camera.aspect = w/h; camera.updateProjectionMatrix();
+  renderer.setSize(w, h);
+});
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import { Hero } from "@/components/Hero";
 import { SectionVision } from "@/components/SectionVision";
+import { SectionDroneSwarmAnimation } from "@/components/SectionDroneSwarmAnimation";
 import { SectionSwarm } from "@/components/SectionSwarm";
 import { SectionDefense } from "@/components/SectionDefense";
 import { SectionSystemView } from "@/components/SectionSystemView";
@@ -12,6 +13,7 @@ export default function Home() {
     <>
       <Hero />
       <SectionVision />
+      <SectionDroneSwarmAnimation />
       <SectionSwarm />
       <SectionDefense />
       <SectionSystemView />
