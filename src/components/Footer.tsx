@@ -45,6 +45,12 @@ export function Footer() {
               Voron Lux
             </Link>
             <Link
+              href="/voron-ai"
+              className="font-mono text-xs uppercase tracking-widest text-brand-tan/60 transition hover:text-brand-orange"
+            >
+              Voron AI
+            </Link>
+            <Link
               href="/voron-swarm#contact"
               className="font-mono text-xs uppercase tracking-widest text-brand-tan/60 transition hover:text-brand-orange"
             >

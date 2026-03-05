@@ -152,6 +152,20 @@ export default function VoronDynamicsHome() {
               </p>
               <span className="mt-4 inline-block font-mono text-xs text-brand-orange">Learn more →</span>
             </Link>
+
+            <Link
+              href="/voron-ai"
+              className="group border border-brand-orange/20 bg-brand-charcoal/50 p-6 transition hover:border-brand-orange/50 hover:bg-brand-charcoal/70"
+            >
+              <span className="font-mono text-xs uppercase tracking-widest text-brand-orange">Custom AI</span>
+              <h3 className="mt-3 font-display text-xl font-bold uppercase text-brand-tan group-hover:text-brand-orange">
+                Voron AI
+              </h3>
+              <p className="mt-2 font-mono text-xs leading-relaxed text-brand-tan/70">
+                Custom AI model for the Voron stack. Perception, coordination, decision-making — train and deploy the brain behind the swarm.
+              </p>
+              <span className="mt-4 inline-block font-mono text-xs text-brand-orange">Learn more →</span>
+            </Link>
           </div>
         </div>
       </section>

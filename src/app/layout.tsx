@@ -16,7 +16,7 @@ const jetbrainsMono = JetBrains_Mono({
 export const metadata: Metadata = {
   title: "Voron Dynamics — Defense-First Robotics",
   description:
-    "Defense-first robotics manufacturer. Autonomous swarm technology: Voron Swarm, Voron Shield, Voron Terra, Voron Lux.",
+    "Defense-first robotics manufacturer. Autonomous swarm technology: Voron Swarm, Voron Shield, Voron Terra, Voron Lux, Voron AI.",
 };
 
 export default function RootLayout({

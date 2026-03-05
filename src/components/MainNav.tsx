@@ -9,6 +9,7 @@ const mainNavLinks = [
   { href: "/voron-shield", label: "Voron Shield" },
   { href: "/voron-terra", label: "Voron Terra" },
   { href: "/voron-lux", label: "Voron Lux" },
+  { href: "/voron-ai", label: "Voron AI" },
 ];
 
 export function MainNav() {
@@ -26,7 +27,7 @@ export function MainNav() {
           </span>
         </Link>
 
-        <ul className="hidden items-center gap-6 md:flex lg:gap-8">
+        <ul className="hidden flex-wrap items-center justify-end gap-x-4 gap-y-1 md:flex md:gap-x-5 lg:gap-x-6">
           {mainNavLinks.map((link) => (
             <li key={link.href}>
               <Link

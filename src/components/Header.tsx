@@ -20,6 +20,7 @@ function getSubNavForPath(pathname: string): { links: SubNavLink[]; basePath: st
   if (pathname === "/voron-shield") return { links: [{ href: "#overview", label: "Overview" }], basePath: "/voron-shield" };
   if (pathname === "/voron-terra") return { links: [{ href: "#overview", label: "Overview" }], basePath: "/voron-terra" };
   if (pathname === "/voron-lux") return { links: [{ href: "#overview", label: "Overview" }], basePath: "/voron-lux" };
+  if (pathname === "/voron-ai") return { links: [{ href: "#overview", label: "Overview" }], basePath: "/voron-ai" };
   return null;
 }
 
