@@ -14,6 +14,24 @@
 body {
   color: var(--foreground);
   background: var(--background);
+  overflow-x: hidden;
+}
+
+/* Full viewport width breakout for elements inside a centered container (e.g. hero yellow lines) */
+.hero-line-full-bleed {
+  position: relative;
+  left: calc(50% - 50vw);
+  width: 100vw;
+  max-width: none;
+}
+
+/* Hero yellow lines: virtually infinite width so they always reach both screen edges */
+.hero-yellow-line {
+  position: relative;
+  left: 50%;
+  width: 300vw;
+  max-width: none;
+  margin-left: -150vw;
 }
 
 /* Subtle grid overlay for futuristic feel */

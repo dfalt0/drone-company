@@ -3,43 +3,76 @@ import Link from "next/link";
 export default function VoronDynamicsHome() {
   return (
     <>
-      {/* Hero */}
-      <section className="relative min-h-[85vh] overflow-hidden border-b border-brand-orange/20 bg-brand-black">
+      {/* Hero — centered title, parentheses, full-width gold lines */}
+      <section className="relative min-h-[90vh] overflow-hidden border-b border-brand-orange/20 bg-[#1a1c18]">
+        {/* Dot grid background */}
         <div
-          className="absolute inset-0 opacity-40"
+          className="absolute inset-0 opacity-60"
+          style={{
+            backgroundImage: `radial-gradient(circle at center, rgba(233, 230, 212, 0.08) 1px, transparent 1px)`,
+            backgroundSize: "24px 24px",
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-30"
           style={{
             backgroundImage: `
-              linear-gradient(to right, rgba(255,88,55,0.06) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,88,55,0.06) 1px, transparent 1px)
+              linear-gradient(to right, rgba(245, 210, 0, 0.04) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(245, 210, 0, 0.04) 1px, transparent 1px)
             `,
             backgroundSize: "48px 48px",
           }}
         />
-        <div className="corner-bracket corner-bracket-tl pointer-events-none absolute top-8 left-8" />
-        <div className="corner-bracket corner-bracket-tr pointer-events-none absolute top-8 right-8" />
-        <div className="corner-bracket corner-bracket-bl pointer-events-none absolute bottom-24 left-8" />
-        <div className="corner-bracket corner-bracket-br pointer-events-none absolute bottom-24 right-8" />
 
-        <div className="relative mx-auto flex min-h-[85vh] max-w-7xl flex-col justify-between px-4 pt-24 pb-16 sm:px-6 lg:px-8">
-          <div className="flex flex-wrap items-center gap-3">
-            <span className="status-bar">DEFENSE-FIRST</span>
-            <span className="status-bar">AUTONOMOUS ROBOTS</span>
-            <span className="font-mono text-brand-orange/80">››››</span>
+        {/* Top-left: status block */}
+        <div className="absolute left-6 top-24 z-10 border border-brand-yellow-gold/50 bg-brand-black/80 px-4 py-3 backdrop-blur-sm sm:left-8 lg:left-12">
+          <p className="font-mono text-xs uppercase tracking-widest text-brand-yellow-gold/90">
+            SWARM DEFENSE <span className="text-brand-tan/70">›››</span>
+          </p>
+          <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-brand-yellow-gold/70">
+            STATUS: ACTIVE / STABLE
+          </p>
+        </div>
+
+        {/* Top-right: barcode-style ID — clean spacing from corner */}
+        <div
+          className="absolute right-5 top-5 z-10 font-mono text-5xl font-bold tracking-[0.5em] text-brand-tan/35 sm:right-6 sm:top-6 sm:text-6xl lg:text-7xl select-none"
+          aria-hidden={true}
+        >
+          VD-1
+        </div>
+
+        {/* Center: graph-paper style — Voron on line 1, Dynamics on line 2 */}
+        <div className="relative min-h-[90vh] px-4 pt-20 pb-24 sm:px-6 lg:px-8">
+          {/* Title block: absolutely centered in hero */}
+          <div className="absolute left-1/2 top-1/2 w-full max-w-6xl -translate-x-1/2 -translate-y-1/2 px-4">
+            <div className="hero-line-full-bleed w-full">
+              <h1 className="flex w-full flex-col items-center text-center" style={{ fontSize: "min(16.9vw, 9.1rem)" }}>
+                {/* Voron — line full viewport width (yellow line commented out temporarily) */}
+                <div className="w-full text-center leading-[1]">
+                  <span className="font-display font-bold uppercase tracking-tight text-brand-tan block">
+                    Voron
+                  </span>
+                  {/* <div className="hero-yellow-line h-[2px] bg-brand-yellow-gold/35 -mt-[0.15em]" aria-hidden /> */}
+                </div>
+
+                {/* Dynamics — line full viewport width (yellow line commented out temporarily) */}
+                <div className="w-full text-center leading-[1]">
+                  <span className="font-display font-bold uppercase tracking-tight text-brand-orange block">
+                    Dynamics
+                  </span>
+                  {/* <div className="hero-yellow-line h-[2px] bg-brand-yellow-gold/35 -mt-[0.15em]" aria-hidden /> */}
+                </div>
+              </h1>
+            </div>
           </div>
 
-          <div className="flex-1 flex flex-col justify-center py-12">
-            <p className="font-mono text-sm uppercase tracking-[0.3em] text-brand-orange">
-              The raven sees first.
+          {/* Tagline and CTAs below title */}
+          <div className="absolute left-1/2 top-[calc(50%+8rem)] w-full max-w-xl -translate-x-1/2 flex flex-col items-center text-center px-4">
+            <p className="font-mono text-sm leading-relaxed text-brand-tan/70">
+              Defense-first robotics built around autonomous swarm technology. Early stage.
             </p>
-            <h1 className="mt-4 font-display text-5xl font-bold uppercase tracking-tight text-brand-tan sm:text-6xl md:text-7xl lg:text-8xl">
-              Voron
-              <br />
-              <span className="text-brand-orange">Dynamics</span>
-            </h1>
-            <p className="mt-6 max-w-xl font-mono text-sm leading-relaxed text-brand-tan/80">
-              Defense-first robotics built around autonomous swarm technology.  An open-source startup pushing real limits. Early stage.
-            </p>
-            <div className="mt-10 flex flex-wrap gap-4">
+            <div className="mt-8 flex flex-wrap justify-center gap-4">
               <Link
                 href="/voron-swarm"
                 className="inline-flex items-center gap-2 bg-brand-orange px-6 py-3 font-mono text-sm font-bold uppercase tracking-widest text-brand-black transition hover:bg-brand-orange/90"
@@ -48,22 +81,35 @@ export default function VoronDynamicsHome() {
               </Link>
               <Link
                 href="#products"
-                className="inline-flex items-center gap-2 border border-brand-orange/50 px-6 py-3 font-mono text-sm uppercase tracking-widest text-brand-orange transition hover:bg-brand-orange/10"
+                className="inline-flex items-center gap-2 border border-brand-yellow-gold/50 px-6 py-3 font-mono text-sm uppercase tracking-widest text-brand-yellow-gold/80 transition hover:bg-brand-yellow-gold/10"
               >
                 All products
               </Link>
             </div>
           </div>
+        </div>
 
-          <div className="flex flex-wrap items-center gap-4 border-t border-brand-orange/20 pt-6">
-            <span className="font-mono text-xs uppercase tracking-widest text-brand-tan/60">
-              Lighter · Cheaper · Faster to iterate
-            </span>
-            <span className="text-brand-orange/50">|</span>
-            <span className="font-mono text-xs uppercase tracking-widest text-brand-tan/60">
-              AI-native from day one
-            </span>
+        {/* Mid-right: technical block */}
+        <div className="absolute bottom-1/3 right-6 z-10 text-right sm:right-8 lg:right-12">
+          <p className="font-mono text-[10px] uppercase tracking-widest text-brand-tan/50">ADVANCED SYSTEMS</p>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-brand-tan/40">LAB — 02</p>
+          <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-brand-tan/40">UNITED STATES</p>
+          <div className="mt-2 flex justify-end gap-1">
+            {[...Array(8)].map((_, i) => (
+              <span key={i} className="h-1 w-1 rounded-full bg-brand-tan/30" />
+            ))}
           </div>
+        </div>
+
+        {/* Bottom strip */}
+        <div className="absolute bottom-8 left-0 right-0 flex flex-wrap items-center justify-center gap-4 px-4 border-t border-brand-orange/10 pt-6">
+          <span className="font-mono text-xs uppercase tracking-widest text-brand-tan/50">
+            Lighter · Cheaper · Faster to iterate
+          </span>
+          <span className="text-brand-yellow-gold/40">|</span>
+          <span className="font-mono text-xs uppercase tracking-widest text-brand-tan/50">
+            AI-native from day one
+          </span>
         </div>
       </section>
 
